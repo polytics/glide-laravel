@@ -3,10 +3,12 @@
 namespace League\Glide\Responses;
 
 use Mockery;
+use PHPUnit\Framework\TestCase;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
-class LaravelResponseFactoryTest extends \PHPUnit_Framework_TestCase
+class LaravelResponseFactoryTest extends TestCase
 {
-    public function tearDown()
+    protected function tearDown(): void
     {
         Mockery::close();
     }
@@ -21,19 +23,19 @@ class LaravelResponseFactoryTest extends \PHPUnit_Framework_TestCase
 
     public function testCreate()
     {
-        $this->cache = Mockery::mock('League\Flysystem\FilesystemInterface', function ($mock) {
-            $mock->shouldReceive('getMimetype')->andReturn('image/jpeg')->once();
-            $mock->shouldReceive('getSize')->andReturn(0)->once();
-            $mock->shouldReceive('readStream');
+        $this->cache = Mockery::mock('League\Flysystem\FilesystemOperator', function ($mock) {
+            $mock->shouldReceive('mimeType')->andReturn('image/jpeg')->once();
+            $mock->shouldReceive('fileSize')->andReturn(0)->once();
+            $mock->shouldReceive('readStream')->andReturn(fopen('php://memory', 'r'))->once();
         });
 
         $factory = new LaravelResponseFactory();
         $response = $factory->create($this->cache, '');
 
-        $this->assertInstanceOf('Symfony\Component\HttpFoundation\StreamedResponse', $response);
+        $this->assertInstanceOf(StreamedResponse::class, $response);
         $this->assertEquals('image/jpeg', $response->headers->get('Content-Type'));
         $this->assertEquals('0', $response->headers->get('Content-Length'));
-        $this->assertContains(gmdate('D, d M Y H:i', strtotime('+1 years')), $response->headers->get('Expires'));
+        $this->assertStringContainsString(gmdate('D, d M Y H:i', strtotime('+1 year')), $response->headers->get('Expires'));
         $this->assertEquals('max-age=31536000, public', $response->headers->get('Cache-Control'));
     }
 }
